@@ -1,0 +1,558 @@
+[
+  {
+    "name": "API Bug Hunting",
+    "dorks": [
+      {
+        "name": "API Endpoints",
+        "description": "Common API paths",
+        "dork": "site:$target.com$ inurl:api | site:*/rest | site:*/v1 | site:*/v2 | site:*/v3",
+        "category": "Endpoints",
+        "favorite": true,
+        "notes": "Hunt for undocumented APIs",
+        "variations": [
+          {
+            "label": "GraphQL",
+            "find": "inurl:api",
+            "replace": "inurl:graphql"
+          },
+          {
+            "label": "RESTful",
+            "find": "inurl:api",
+            "replace": "inurl:rest"
+          }
+        ]
+      },
+      {
+        "name": "API Documentation",
+        "description": "API docs exposure",
+        "dork": "inurl:apidocs | inurl:api-docs | inurl:swagger | inurl:api-explorer site:$target.com$",
+        "category": "Documentation",
+        "favorite": true,
+        "notes": "Often reveals endpoints and keys",
+        "variations": [
+          {
+            "label": "OpenAPI",
+            "find": "inurl:swagger",
+            "replace": "inurl:openapi"
+          },
+          {
+            "label": "PDF",
+            "find": "",
+            "replace": " filetype:pdf"
+          }
+        ]
+      },
+      {
+        "name": "API Keys in Configs",
+        "description": "Exposed API keys",
+        "dork": "site:$target.com$ filetype:env intext:\"API_KEY\"",
+        "category": "Sensitive Data",
+        "favorite": true,
+        "notes": "Look for leaked credentials",
+        "variations": [
+          {
+            "label": "JSON",
+            "find": "filetype:env",
+            "replace": "filetype:json"
+          },
+          {
+            "label": "YAML",
+            "find": "filetype:env",
+            "replace": "filetype:yaml"
+          }
+        ]
+      },
+      {
+        "name": "Swagger UI",
+        "description": "Swagger interfaces",
+        "dork": "intitle:\"Swagger UI\" site:$target.com$",
+        "category": "Documentation",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "GraphQL Endpoints",
+        "description": "GraphQL paths",
+        "dork": "inurl:graphql | inurl:altair | inurl:graphiql site:$target.com$",
+        "category": "Endpoints",
+        "favorite": true,
+        "notes": "Test for introspection",
+        "variations": []
+      },
+      {
+        "name": "API Error Messages",
+        "description": "API errors",
+        "dork": "site:$target.com$ intext:\"api error\" | \"invalid api key\"",
+        "category": "Vulnerabilities",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "Exposed API Configs",
+        "description": "API config files",
+        "dork": "site:$target.com$ ext:yaml | ext:yml intext:\"api\"",
+        "category": "Sensitive Data",
+        "favorite": false,
+        "notes": "",
+        "variations": [
+          {
+            "label": "XML",
+            "find": "ext:yaml",
+            "replace": "ext:xml"
+          }
+        ]
+      },
+      {
+        "name": "API Test Environments",
+        "description": "Dev API sites",
+        "dork": "site:$target.com$ inurl:api inurl:test | inurl:dev | inurl:staging",
+        "category": "Environments",
+        "favorite": true,
+        "notes": "",
+        "variations": []
+      }
+    ]
+  },
+  {
+    "name": "Web App Bug Hunting",
+    "dorks": [
+      {
+        "name": "Broad Domain Search",
+        "description": "Broad search excluding common subs",
+        "dork": "site:$target.com$ -www -shop -share -ir -mfa",
+        "category": "Recon",
+        "favorite": false,
+        "notes": "Useful for initial recon",
+        "variations": []
+      },
+      {
+        "name": "PHP Params",
+        "description": "PHP files with params",
+        "dork": "site:$target.com$ ext:php inurl:?",
+        "category": "Parameters",
+        "favorite": true,
+        "notes": "Test for injection vulns",
+        "variations": [
+          {
+            "label": "ASP",
+            "find": "ext:php",
+            "replace": "ext:asp"
+          },
+          {
+            "label": "JSP",
+            "find": "ext:php",
+            "replace": "ext:jsp"
+          }
+        ]
+      },
+      {
+        "name": "Juicy Extensions",
+        "description": "Sensitive file exts",
+        "dork": "site:$target.com$ ext:log | ext:txt | ext:conf | ext:cnf | ext:ini | ext:env | ext:sh | ext:bak | ext:backup | ext:swp | ext:old | ext:~ | ext:git | ext:svn | ext:htpasswd | ext:htaccess | ext:json",
+        "category": "Sensitive Files",
+        "favorite": true,
+        "notes": "Hunt for leaks",
+        "variations": [
+          {
+            "label": "DB Dumps",
+            "find": "ext:log",
+            "replace": "ext:sql | ext:db | ext:dmp"
+          }
+        ]
+      },
+      {
+        "name": "Server Errors",
+        "description": "Error messages",
+        "dork": "inurl:\"error\" | intitle:\"exception\" | intitle:\"failure\" | intitle:\"server at\" | inurl:exception | \"database error\" | \"SQL syntax\" | \"undefined index\" | \"unhandled exception\" | \"stack trace\" site:$target.com$",
+        "category": "Errors",
+        "favorite": false,
+        "notes": "Indicate potential vulns",
+        "variations": []
+      },
+      {
+        "name": "XSS Params",
+        "description": "XSS prone params",
+        "dork": "inurl:q= | inurl:s= | inurl:search= | inurl:query= | inurl:keyword= | inurl:lang= inurl:& site:$target.com$",
+        "category": "XSS",
+        "favorite": true,
+        "notes": "Test for reflected XSS",
+        "variations": [
+          {
+            "label": "More Params",
+            "find": "inurl:lang=",
+            "replace": "inurl:filter= | inurl:sort="
+          }
+        ]
+      },
+      {
+        "name": "Open Redirect Params",
+        "description": "Redirect prone",
+        "dork": "inurl:url= | inurl:return= | inurl:next= | inurl:redirect= | inurl:redir= | inurl:ret= | inurl:r2= | inurl:page= inurl:& inurl:http site:$target.com$",
+        "category": "Open Redirect",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "SQLi Params",
+        "description": "SQLi prone",
+        "dork": "inurl:id= | inurl:pid= | inurl:category= | inurl:cat= | inurl:action= | inurl:sid= | inurl:dir= inurl:& site:$target.com$",
+        "category": "SQLi",
+        "favorite": true,
+        "notes": "",
+        "variations": [
+          {
+            "label": "More IDs",
+            "find": "inurl:dir=",
+            "replace": "inurl:product= | inurl:user="
+          }
+        ]
+      },
+      {
+        "name": "SSRF Params",
+        "description": "SSRF prone",
+        "dork": "inurl:http | inurl:url= | inurl:path= | inurl:dest= | inurl:html= | inurl:data= | inurl:domain=  | inurl:page= inurl:& site:$target.com$",
+        "category": "SSRF",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "LFI Params",
+        "description": "LFI prone",
+        "dork": "inurl:include | inurl:dir | inurl:detail= | inurl:file= | inurl:folder= | inurl:inc= | inurl:locate= | inurl:doc= | inurl:conf= inurl:& site:$target.com$",
+        "category": "LFI",
+        "favorite": true,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "RCE Params",
+        "description": "RCE prone",
+        "dork": "inurl:cmd | inurl:exec= | inurl:query= | inurl:code= | inurl:do= | inurl:run= | inurl:read=  | inurl:ping= inurl:& site:$target.com$",
+        "category": "RCE",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "File Uploads",
+        "description": "Upload endpoints",
+        "dork": "site:$target.com$ \"choose file\"",
+        "category": "Uploads",
+        "favorite": false,
+        "notes": "Test for arbitrary uploads",
+        "variations": []
+      },
+      {
+        "name": "Login Pages",
+        "description": "Login portals",
+        "dork": "inurl:login | inurl:signin | intitle:login | intitle:signin | inurl:secure site:$target.com$",
+        "category": "Auth",
+        "favorite": false,
+        "notes": "",
+        "variations": [
+          {
+            "label": "Admin",
+            "find": "inurl:login",
+            "replace": "inurl:admin"
+          }
+        ]
+      },
+      {
+        "name": "Test Envs",
+        "description": "Dev/staging sites",
+        "dork": "inurl:test | inurl:env | inurl:dev | inurl:staging | inurl:sandbox | inurl:debug | inurl:temp | inurl:internal | inurl:demo site:$target.com$",
+        "category": "Environments",
+        "favorite": true,
+        "notes": "Often less secure",
+        "variations": []
+      },
+      {
+        "name": "Sensitive Docs",
+        "description": "Confidential files",
+        "dork": "site:$target.com$ ext:txt | ext:pdf | ext:xml | ext:xls | ext:xlsx | ext:ppt | ext:pptx | ext:doc | ext:docx intext:“confidential” | intext:“Not for Public Release” | intext:”internal use only” | intext:“do not distribute”",
+        "category": "Sensitive Files",
+        "favorite": false,
+        "notes": "",
+        "variations": [
+          {
+            "label": "NDA",
+            "find": "intext:“confidential”",
+            "replace": "intext:“NDA” | intext:“non-disclosure”"
+          }
+        ]
+      },
+      {
+        "name": "Index Of",
+        "description": "Open directories",
+        "dork": "intitle:\"index of\" site:$target.com$",
+        "category": "Directories",
+        "favorite": true,
+        "notes": "",
+        "variations": [
+          {
+            "label": "Parent",
+            "find": "",
+            "replace": " \"parent directory\""
+          }
+        ]
+      },
+      {
+        "name": "Admin Panels",
+        "description": "Admin consoles",
+        "dork": "inurl:admin | inurl:cpanel | inurl:dashboard site:$target.com$",
+        "category": "Auth",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "Config Files",
+        "description": "Exposed configs",
+        "dork": "inurl:config filetype:xml | filetype:conf | filetype:ini site:$target.com$",
+        "category": "Sensitive Files",
+        "favorite": true,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "WP Config",
+        "description": "WordPress configs",
+        "dork": "inurl:wp-config.php site:$target.com$",
+        "category": "CMS",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "Log Files",
+        "description": "Exposed logs",
+        "dork": "filetype:log site:$target.com$",
+        "category": "Sensitive Files",
+        "favorite": false,
+        "notes": "",
+        "variations": [
+          {
+            "label": "Password",
+            "find": "",
+            "replace": " intext:password"
+          }
+        ]
+      },
+      {
+        "name": "Git Exposed",
+        "description": "Git repos",
+        "dork": "inurl:.git site:$target.com$",
+        "category": "Source Code",
+        "favorite": true,
+        "notes": "",
+        "variations": []
+      }
+    ]
+  },
+  {
+    "name": "OSINT People",
+    "dorks": [
+      {
+        "name": "Person Docs",
+        "description": "Docs with name",
+        "dork": "\"$name$\" filetype:pdf OR filetype:xlsx OR filetype:docx",
+        "category": "Documents",
+        "favorite": true,
+        "notes": "Resumes, contracts",
+        "variations": [
+          {
+            "label": "PPT",
+            "find": "filetype:docx",
+            "replace": "filetype:ppt | filetype:pptx"
+          }
+        ]
+      },
+      {
+        "name": "Social Accounts",
+        "description": "Connected social",
+        "dork": "$name$ site:twitter.com | site:facebook.com | site:linkedin.com | site:instagram.com",
+        "category": "Social Media",
+        "favorite": true,
+        "notes": "",
+        "variations": [
+          {
+            "label": "Reddit",
+            "find": "site:twitter.com",
+            "replace": "site:reddit.com"
+          }
+        ]
+      },
+      {
+        "name": "Cached Pages",
+        "description": "Cached site",
+        "dork": "cache:$url$",
+        "category": "Historical",
+        "favorite": false,
+        "notes": "Old versions",
+        "variations": []
+      },
+      {
+        "name": "LinkedIn Profiles",
+        "description": "LI profiles",
+        "dork": "$name$ site:linkedin.com/in/",
+        "category": "Social Media",
+        "favorite": true,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "Time Range",
+        "description": "Dated content",
+        "dork": "$phrase$ after:YYYY-MM-DD AND before:YYYY-MM-DD",
+        "category": "Timeline",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "Phone Numbers",
+        "description": "Edu phones",
+        "dork": "site:.edu \"$name$\" \"phone number\"",
+        "category": "Contact Info",
+        "favorite": false,
+        "notes": "",
+        "variations": [
+          {
+            "label": "GOV",
+            "find": ".edu",
+            "replace": ".gov"
+          },
+          {
+            "label": "ORG",
+            "find": ".edu",
+            "replace": ".org"
+          }
+        ]
+      },
+      {
+        "name": "Email Search",
+        "description": "Gmail emails",
+        "dork": "intext:\"@gmail.com\" AND intext:\"$name$\"",
+        "category": "Contact Info",
+        "favorite": true,
+        "notes": "",
+        "variations": [
+          {
+            "label": "Yahoo",
+            "find": "@gmail.com",
+            "replace": "@yahoo.com"
+          },
+          {
+            "label": "Outlook",
+            "find": "@gmail.com",
+            "replace": "@outlook.com"
+          },
+          {
+            "label": "Hotmail",
+            "find": "@gmail.com",
+            "replace": "@hotmail.com"
+          }
+        ]
+      },
+      {
+        "name": "Location Text",
+        "description": "Location mentions",
+        "dork": "intext:\"location\" AND intext:\"$name$\"",
+        "category": "Geolocation",
+        "favorite": false,
+        "notes": "",
+        "variations": [
+          {
+            "label": "Address",
+            "find": "location",
+            "replace": "address"
+          },
+          {
+            "label": "City",
+            "find": "location",
+            "replace": "city | state"
+          }
+        ]
+      },
+      {
+        "name": "Exact Phrase",
+        "description": "Exact name search",
+        "dork": "\"$name$\"",
+        "category": "Basic",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "Exclude Terms",
+        "description": "Exclude common names",
+        "dork": "$name$ -celebrity -famous",
+        "category": "Basic",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "Pastebin Leaks",
+        "description": "Pastebin mentions",
+        "dork": "site:pastebin.com \"$name$\"",
+        "category": "Leaks",
+        "favorite": true,
+        "notes": "",
+        "variations": [
+          {
+            "label": "Password",
+            "find": "",
+            "replace": " \"password\""
+          }
+        ]
+      },
+      {
+        "name": "GitHub Mentions",
+        "description": "GitHub profiles",
+        "dork": "site:github.com \"$name$\"",
+        "category": "Social Media",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "Forum Posts",
+        "description": "Forum activity",
+        "dork": "$name$ site:forum.* | site:board.*",
+        "category": "Online Activity",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "News Articles",
+        "description": "News mentions",
+        "dork": "$name$ site:news.* | site:*.news",
+        "category": "Public Records",
+        "favorite": false,
+        "notes": "",
+        "variations": []
+      },
+      {
+        "name": "PDF Resumes",
+        "description": "Resume files",
+        "dork": "intitle:resume | intitle:cv \"$name$\" filetype:pdf",
+        "category": "Documents",
+        "favorite": true,
+        "notes": "",
+        "variations": [
+          {
+            "label": "DOC",
+            "find": "filetype:pdf",
+            "replace": "filetype:doc | filetype:docx"
+          }
+        ]
+      }
+    ]
+  }
+]

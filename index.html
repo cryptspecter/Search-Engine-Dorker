@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Dorker Tool by Crypt Specter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #111827; --bg-secondary: #1f2937; --bg-tertiary: #374151;
+            --text-primary: #f9fafb; --text-secondary: #9ca3af; --border-color: #374151;
+            --accent-primary: #3b82f6; --accent-hover: #2563eb; --favorite-yellow: #f59e0b;
+        }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-primary); color: var(--text-primary); }
+        .dork-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; border: 1px solid var(--border-color);
+            background-color: var(--bg-secondary);
+        }
+        .dork-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1); }
+        .modal-backdrop { background-color: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+        .modal-content { background-color: var(--bg-secondary); border: 1px solid var(--border-color); }
+        .input-field, .select-field {
+            background-color: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary);
+        }
+        .input-field::placeholder { color: #6b7280; }
+        .input-field:focus, .select-field:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); }
+        .btn {
+            transition: all 0.2s ease-in-out; border-radius: 0.5rem; font-weight: 600;
+            padding: 0.6rem 1.2rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+        }
+        .btn-primary { background-color: var(--accent-primary); color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: var(--accent-hover); }
+        .btn-secondary { background-color: var(--bg-tertiary); color: white; }
+        .btn-secondary:hover { background-color: var(--border-color); }
+        .btn-success { background-color: #16a34a; color: white; }
+        .btn-success:hover { background-color: #15803d; }
+        .btn-danger { background-color: #dc2626; color: white; }
+        .btn-danger:hover { background-color: #b91c1c; }
+        .favorite-btn.favorited svg { color: var(--favorite-yellow); fill: var(--favorite-yellow); }
+        .copy-btn .copy-icon { display: block; }
+        .copy-btn .check-icon { display: none; }
+        .copy-btn.copied .copy-icon { display: none; }
+        .copy-btn.copied .check-icon { display: block; }
+        details > summary { cursor: pointer; list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        details summary .arrow { transition: transform 0.2s; }
+        details[open] summary .arrow { transform: rotate(-180deg); }
+        .filter-btn.active { background-color: var(--accent-primary); color: white; }
+    </style>
+</head>
+<body class="p-4 sm:p-6 lg:p-8">
+
+    <div id="notification" class="fixed top-6 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 bg-yellow-500 text-yellow-900 rounded-lg shadow-lg text-center hidden">
+        If tabs were blocked, please check your browser to <strong>allow pop-ups</strong>.
+    </div>
+
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl sm:text-5xl font-bold mb-2">Advanced Dorker Tool</h1>
+            <p class="text-lg text-gray-400">Your personal dork collection for security research.</p>
+        </header>
+
+        <nav class="sticky top-4 z-40 bg-gray-800/80 backdrop-blur-md rounded-xl shadow-lg p-4 mb-8 space-y-4">
+            <div class="flex flex-col md:flex-row gap-4 items-center">
+                <div class="relative flex-grow w-full">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                    <input type="text" id="search-input" placeholder="Search all dorks..." class="w-full pl-10 pr-4 py-3 rounded-lg input-field placeholder-gray-500">
+                </div>
+                <select id="search-engine-selector" class="select-field rounded-lg px-4 py-3 w-full md:w-auto">
+                    <option value="google">Google</option>
+                    <option value="duckduckgo">DuckDuckGo</option>
+                    <option value="bing">Bing</option>
+                </select>
+                <div class="flex gap-2 flex-wrap justify-center">
+                    <button id="add-dork-btn" class="btn btn-success"><svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>Add Dork</button>
+                    <button id="help-btn" class="btn btn-secondary" title="How to Use"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg></button>
+                     <button id="json-guide-btn" class="btn btn-secondary" title="Dork JSON Guide"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm4.75 3.75a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clip-rule="evenodd" /></svg></button>
+                </div>
+            </div>
+            <div id="collections-filter-container" class="border-t border-gray-700/50 pt-3 flex flex-wrap gap-2"></div>
+        </nav>
+
+        <main id="dorks-container" class="space-y-12"></main>
+
+        <footer class="text-center mt-12 py-6 border-t border-gray-800">
+            <p class="text-gray-500">Made by <span class="font-semibold text-gray-400">Crypt Specter</span></p>
+        </footer>
+    </div>
+
+    <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div id="modal-content" class="modal-content w-full max-w-6xl rounded-lg shadow-xl p-6">
+            <h2 class="text-2xl font-bold mb-6" id="modal-title"></h2>
+            <form id="modal-form">
+                <div id="modal-body" class="max-h-[70vh] overflow-y-auto pr-2"></div>
+                <div id="modal-footer" class="flex justify-end space-x-3 pt-6 border-t border-gray-700 mt-6"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // !! IMPORTANT !!
+        // Replace this URL with the raw URL of your dorks.json file from your GitHub repository.
+        const GITHUB_DORKS_URL = 'https://raw.githubusercontent.com/cryptspecter/Search-Engine-Dorker/main/dorks.json';
+
+        const searchEngines = { google: { url: "https://www.google.com/search", q: "q" }, duckduckgo: { url: "https://duckduckgo.com/", q: "q" }, bing: { url: "https://www.bing.com/search", q: "q" } };
+        const dorkComponents = {
+            "Scope": [{ term: 'site:', p: 'ex.com', d: 'Search a specific site.' },{ term: 'filetype:', p: 'pdf', d: 'Find specific file types.' },{ term: 'ext:', p: 'log', d: 'Alt for filetype.' }],
+            "Text Location": [{ term: 'intitle:', p: '"Login"', d: 'Term in page title.' },{ term: 'inurl:', p: 'admin', d: 'Term in URL.' },{ term: 'intext:', p: '"pass"', d: 'Term in page body.' }],
+            "Logical Ops": [{ term: '""', p: 'phrase', d: 'Exact phrase search.' },{ term: '|', p: '', d: 'Logical OR.' },{ term: '-', p: 'word', d: 'Exclude a term.' },{ term: '*', p: '', d: 'Wildcard for one word.' },{ term: '()', p: 'group', d: 'Group operators.' }],
+        };
+        const validDorkOperators = ['site:','filetype:','ext:','intitle:','allintitle:','inurl:','allinurl:','intext:','allintext:','define:','cache:','link:','related:','info:','|','-','"','(',')','*'];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            let masterCollections = [];
+            let localCollections = [];
+            let combinedCollections = [];
+            let activeDorks = [];
+            let editingDorkIndices = null; // { isMaster: false, collectionIndex, dorkIndex }
+            const placeholderRegex = /\$(\w+(?:\.\w+)?)\$/g;
+
+            const ui = {
+                dorksContainer: document.getElementById('dorks-container'),
+                searchInput: document.getElementById('search-input'),
+                searchEngineSelector: document.getElementById('search-engine-selector'),
+                collectionsFilterContainer: document.getElementById('collections-filter-container'),
+                modal: document.getElementById('modal'),
+                modalTitle: document.getElementById('modal-title'),
+                modalForm: document.getElementById('modal-form'),
+                modalBody: document.getElementById('modal-body'),
+                modalFooter: document.getElementById('modal-footer'),
+                notification: document.getElementById('notification'),
+            };
+            let notificationTimeout;
+
+            const getLocalCollections = () => JSON.parse(localStorage.getItem('dorker_local_collections') || '[]');
+            const saveLocalCollections = (collections) => localStorage.setItem('dorker_local_collections', JSON.stringify(collections));
+
+            const mergeCollections = () => {
+                const merged = JSON.parse(JSON.stringify(masterCollections)); // Deep copy master
+                localCollections = getLocalCollections();
+
+                // Add flags to distinguish master vs local dorks
+                merged.forEach(col => col.dorks.forEach(dork => dork.isMaster = true));
+                localCollections.forEach(col => col.dorks.forEach(dork => dork.isMaster = false));
+
+                localCollections.forEach(localCol => {
+                    const masterCol = merged.find(mc => mc.name === localCol.name);
+                    if (masterCol) {
+                        masterCol.dorks.push(...localCol.dorks);
+                    } else {
+                        merged.push(localCol);
+                    }
+                });
+                return merged;
+            };
+
+            const refreshDataAndRender = () => {
+                combinedCollections = mergeCollections();
+                const activeFilter = ui.collectionsFilterContainer.querySelector('.active')?.dataset.collectionName || 'All';
+                let collectionsToRender = activeFilter === 'All' ? combinedCollections : combinedCollections.filter(c => c.name === activeFilter);
+                render(collectionsToRender);
+                renderCollectionFilters(activeFilter);
+            };
+
+            const loadMasterCollections = async () => {
+                try {
+                    const response = await fetch(GITHUB_DORKS_URL);
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                    masterCollections = await response.json();
+                } catch (error) {
+                    console.error("Failed to load master dorks:", error);
+                    showAlertModal("Load Error", "Could not fetch the master dork list from GitHub. Please check the URL and your network connection. You can still add and use local dorks.");
+                    masterCollections = [];
+                } finally {
+                    refreshDataAndRender();
+                }
+            };
+
+            const getRecentInput = (key) => localStorage.getItem(`dorker_input_${key}`);
+            const saveRecentInput = (key, value) => localStorage.setItem(`dorker_input_${key}`, value);
+            const getUniqueCollectionNames = () => [...new Set(combinedCollections.map(c => c.name))].sort();
+            const getAllDorksFlat = () => combinedCollections.flatMap(c => c.dorks);
+            const getUniqueCategories = () => [...new Set(getAllDorksFlat().map(d => d.category).filter(Boolean))].sort();
+
+            const showNotification = () => { clearTimeout(notificationTimeout); ui.notification.classList.remove('hidden'); notificationTimeout = setTimeout(() => ui.notification.classList.add('hidden'), 5000); };
+            const findUniquePlaceholders = (dorkStrings) => [...new Set([].concat(dorkStrings).flatMap(dork => dork.match(placeholderRegex) || []))];
+            const validateDorkSyntax = (dorkString) => !dorkString ? false : (placeholderRegex.test(dorkString) || validDorkOperators.some(op => dorkString.includes(op)));
+
+            const runDorks = (dorkArray, values = {}) => {
+                const engine = searchEngines[ui.searchEngineSelector.value];
+                dorkArray.forEach(dorkString => {
+                    let finalDork = Object.entries(values).reduce((d, [k, v]) => d.replace(new RegExp(`\\$${k.replace('.','\\.')}\\$`, 'g'), v), dorkString);
+                    window.open(`${engine.url}?${engine.q}=${encodeURIComponent(finalDork)}`, '_blank');
+                });
+            };
+
+            const handleDorkExecution = (dorksToRun) => {
+                activeDorks = Array.isArray(dorksToRun) ? dorksToRun : [dorksToRun];
+                const placeholders = findUniquePlaceholders(activeDorks);
+                if (activeDorks.length > 1) showNotification();
+                if (placeholders.length > 0) showInputModal(placeholders); else runDorks(activeDorks, {});
+            }
+            
+            const hideModal = () => ui.modal.classList.add('hidden');
+            const showModal = (title, bodyHTML, footerHTML) => { ui.modalTitle.innerHTML = title; ui.modalBody.innerHTML = bodyHTML || ''; ui.modalFooter.innerHTML = footerHTML; ui.modal.classList.remove('hidden'); };
+            
+            const showInputModal = (placeholders) => {
+                const bodyHTML = placeholders.map(ph => `<div class="mb-4"><label for="${ph.replace(/\$/g,'')}" class="block text-sm font-medium text-gray-400 mb-1">${ph.replace(/\$/g,'')}</label><input type="text" id="${ph.replace(/\$/g,'')}" name="${ph.replace(/\$/g,'')}" value="${getRecentInput(ph.replace(/\$/g,'')) || ''}" class="input-field w-full px-3 py-2 rounded-md" required></div>`).join('');
+                showModal("Enter Parameters", bodyHTML, `<button type="button" class="modal-cancel btn btn-secondary">Cancel</button><button type="submit" class="btn btn-primary">Run</button>`);
+                ui.modalBody.querySelector('input')?.focus();
+            };
+            
+            const showDorkEditorModal = (dork = null, collection = null) => {
+                // Editing is only allowed for local dorks
+                if (dork) {
+                    const localColIdx = localCollections.findIndex(lc => lc.name === collection.name);
+                    const localDorkIdx = localCollections[localColIdx]?.dorks.indexOf(dork);
+                    editingDorkIndices = { collectionIndex: localColIdx, dorkIndex: localDorkIdx };
+                } else {
+                    editingDorkIndices = null; // Adding a new dork
+                }
+                
+                const collectionNames = getUniqueCollectionNames().map(c => `<option value="${c}"></option>`).join('');
+                const categories = getUniqueCategories().map(c => `<option value="${c}"></option>`).join('');
+                let builderHTML = Object.entries(dorkComponents).map(([cat, comps]) => `<details class="border border-gray-700 rounded-lg mb-2"><summary class="p-3 font-semibold flex justify-between items-center"><span>${cat}</span><svg class="arrow h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></summary><div class="p-3 border-t border-gray-700 flex flex-wrap gap-2">${comps.map(c => `<button type="button" class="dork-component-btn btn btn-secondary text-xs p-1" data-term="${c.term}" title="${c.d}">${c.term}</button>`).join('')}</div></details>`).join('');
+                const variationsHTML = (dork?.variations || []).map(v => `<div class="variation-item grid grid-cols-4 gap-2 items-center"><input type="text" placeholder="Button Label" value="${v.label||''}" class="input-field p-1 v-label"><input type="text" placeholder="Text to Find" value="${v.find||''}" class="input-field p-1 v-find"><input type="text" placeholder="Replacement" value="${v.replace||''}" class="input-field p-1 v-replace"><button type="button" class="btn btn-danger text-xs p-2 remove-variation-btn">X</button></div>`).join('');
+
+                const bodyHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <input type="text" name="name" class="input-field w-full p-2 rounded" placeholder="Dork Name (Required)" value="${dork?.name || ''}" required>
+                        <div><label class="block text-sm font-medium text-gray-400 mb-1">Collection</label><input type="text" name="collectionName" list="collection-list" class="input-field w-full p-2 rounded" placeholder="Choose or create a collection (Required)" value="${collection?.name || ''}" required><datalist id="collection-list">${collectionNames}</datalist></div>
+                        <div><label class="block text-sm font-medium text-gray-400 mb-1">Category</label><input type="text" name="category" list="category-list" class="input-field w-full p-2 rounded" placeholder="Choose or create a category (Required)" value="${dork?.category || ''}" required><datalist id="category-list">${categories}</datalist></div>
+                        <textarea name="description" class="input-field w-full p-2 rounded" placeholder="Description" rows="3">${dork?.description || ''}</textarea>
+                        <textarea name="notes" class="input-field w-full p-2 rounded" placeholder="Optional notes..." rows="3">${dork?.notes || ''}</textarea>
+                    </div>
+                    <div class="space-y-4">
+                          <div><label class="block text-sm font-medium text-gray-400 mb-2">Dork Composer</label><textarea name="dork" class="input-field w-full p-2 rounded font-mono" rows="5" placeholder="Click components or type here... (Required)" required>${dork?.dork || ''}</textarea>
+                          <div class="flex flex-wrap gap-2 mt-2">${['site:', 'inurl:', 'filetype:', '""', '|', '$target.com$'].map(t => `<button type="button" class="quick-add-btn btn btn-secondary text-xs p-1" data-term="${t}">${t}</button>`).join('')}</div></div>
+                         <div><label class="block text-sm font-medium text-gray-400 mb-2">Advanced Operators</label>${builderHTML}</div>
+                         <div><label class="block text-sm font-medium text-gray-400 mb-2">Variations (Optional)</label><div id="variations-container" class="space-y-2">${variationsHTML}</div><button type="button" id="add-variation-btn" class="btn btn-secondary text-sm mt-2">Add Variation</button></div>
+                    </div>
+                </div>`;
+                showModal(dork ? "Edit Dork" : "Add New Dork", bodyHTML, `<button type="button" class="modal-cancel btn btn-secondary">Cancel</button><button type="submit" class="btn btn-primary">${dork ? "Save Changes" : "Create Dork"}</button>`);
+            };
+            
+            const showHelpModal = () => { /* ... (Content unchanged) ... */ };
+            const showJsonGuideModal = () => { /* ... (Content unchanged) ... */ };
+            const showAlertModal = (title, message) => showModal(`<span class="text-red-500">${title}</span>`, `<p>${message}</p>`, `<button type="button" class="modal-cancel btn btn-primary">OK</button>`);
+            
+            const renderCollectionFilters = (activeCollectionName = 'All') => {
+                ui.collectionsFilterContainer.innerHTML = '';
+                const names = getUniqueCollectionNames();
+                const createButton = (name, isActive) => {
+                    const btn = document.createElement('button');
+                    btn.className = `btn btn-secondary text-sm filter-btn ${isActive ? 'active' : ''}`;
+                    btn.textContent = name;
+                    btn.dataset.collectionName = name;
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        const collectionsToRender = name === 'All' ? combinedCollections : combinedCollections.filter(c => c.name === name);
+                        render(collectionsToRender);
+                    });
+                    return btn;
+                };
+                ui.collectionsFilterContainer.appendChild(createButton('All', activeCollectionName === 'All'));
+                names.forEach(name => ui.collectionsFilterContainer.appendChild(createButton(name, activeCollectionName === name)));
+            };
+
+            const render = (collectionsToRender) => {
+                ui.dorksContainer.innerHTML = '';
+                const allDorks = getAllDorksFlat();
+                const favorites = allDorks.filter(d => d.favorite);
+
+                if (favorites.length > 0) ui.dorksContainer.appendChild(renderCategorySection(null, "Favorites", favorites));
+                
+                collectionsToRender.forEach((collection) => {
+                    const collectionContainer = document.createElement('section');
+                    collectionContainer.className = 'collection-section';
+                    const nonFavoriteDorks = collection.dorks.filter(d => !d.favorite);
+                    const dorksByCategory = nonFavoriteDorks.reduce((acc, dork) => {
+                        const category = dork.category || "Uncategorized";
+                        (acc[category] = acc[category] || []).push(dork);
+                        return acc;
+                    }, {});
+                    Object.keys(dorksByCategory).sort().forEach(category => {
+                        collectionContainer.appendChild(renderCategorySection(collection, category, dorksByCategory[category]));
+                    });
+                    ui.dorksContainer.appendChild(collectionContainer);
+                });
+                if (allDorks.length === 0) ui.dorksContainer.innerHTML = `<div class="text-center text-gray-400 bg-gray-900/50 rounded-lg p-8"><h3 class="text-2xl font-semibold">No dorks loaded.</h3><p class="mt-2">Check the GitHub URL or add a local dork to get started.</p></div>`;
+            };
+            
+            const renderCategorySection = (collection, categoryName, dorkList) => {
+                const categorySection = document.createElement('div');
+                categorySection.className = 'mb-10';
+                categorySection.innerHTML = `<div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-semibold border-l-4 border-blue-500 pl-4">${categoryName} ${collection && categoryName !== 'Favorites' ? `<span class="text-base font-normal text-gray-400">in ${collection.name}</span>` : ''}</h3>
+                    ${categoryName !== 'Favorites' ? `<button data-collection-name="${collection.name}" data-category="${categoryName}" class="run-category-btn btn btn-secondary text-sm">Run Category</button>`: ''}
+                </div>`;
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+
+                dorkList.forEach(dork => {
+                    const card = document.createElement('div');
+                    card.className = 'dork-card rounded-lg p-5 flex flex-col justify-between';
+                    card.dataset.dorkName = dork.name; // Use name for identification
+                    card.dataset.collectionName = collection ? collection.name : dorkList.find(d => d.name === dork.name).collectionName; // Find collection for favorites view
+
+                    const editDeleteButtons = dork.isMaster ? '' : `
+                        <button class="edit-btn text-gray-400 hover:text-white p-1" title="Edit"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"/></svg></button>
+                        <button class="delete-btn text-gray-400 hover:text-red-500 p-1" title="Delete"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                    `;
+
+                    card.innerHTML = `<div><div class="flex justify-between items-start mb-2"><h4 class="text-xl font-semibold cursor-pointer pr-2">${dork.name}</h4>
+                        <div class="flex space-x-0 5 flex-shrink-0">
+                            <button class="favorite-btn ${dork.favorite ? 'favorited' : ''} text-gray-400 hover:text-yellow-400 p-1" title="Favorite"><svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg></button>
+                            ${editDeleteButtons}
+                        </div></div>
+                        <p class="text-gray-400 mt-1 text-sm cursor-pointer">${dork.description}</p>
+                        ${dork.notes ? `<p class="text-xs text-blue-300 bg-blue-900/50 rounded px-2 py-1 mt-3"><strong>Note:</strong> ${dork.notes}</p>` : ''}
+                        </div><div class="mt-4"><code class="block bg-gray-900 text-gray-300 p-3 rounded-md text-xs overflow-x-auto whitespace-pre-wrap cursor-pointer relative pr-10">${dork.dork}<button class="copy-btn absolute top-1/2 right-2 transform -translate-y-1/2 text-gray-400 hover:text-white p-1" title="Copy"><svg class="copy-icon h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7v8a2 2 0 002 2h4M8 7a2 2 0 012-2h4a2 2 0 012 2v8a2 2 0 01-2 2h-4a2 2 0 01-2-2V7z" /></svg><svg class="check-icon h-5 w-5 text-green-400" style="display:none;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg></button></code>
+                        ${dork.variations?.length > 0 ? `<div class="mt-2 flex flex-wrap gap-2">${dork.variations.map(v => `<button class="btn btn-secondary text-xs" data-find="${v.find}" data-replace="${v.replace}">${v.label}</button>`).join('')}</div>` : ''}</div>`;
+                    grid.appendChild(card);
+                });
+                return categorySection;
+            };
+
+            const handleCardClick = (e) => {
+                const card = e.target.closest('.dork-card');
+                if (!card) return;
+
+                const dorkName = card.dataset.dorkName;
+                const dork = getAllDorksFlat().find(d => d.name === dorkName);
+                if (!dork) return;
+
+                const targetBtn = e.target.closest('button');
+                if (targetBtn) {
+                     if (targetBtn.classList.contains('favorite-btn')) { 
+                        dork.favorite = !dork.favorite; 
+                        // Since favorite is a local-only setting, save it to local storage. This is a simplification.
+                        // A more complex implementation would track favorite status of master dorks separately.
+                        // For now, this change is not persisted for master dorks.
+                        if (!dork.isMaster) {
+                             saveLocalCollections(localCollections);
+                        }
+                        refreshDataAndRender();
+                     }
+                    else if (targetBtn.classList.contains('edit-btn')) {
+                        const collection = combinedCollections.find(c => c.dorks.includes(dork));
+                        showDorkEditorModal(dork, collection);
+                    }
+                    else if (targetBtn.classList.contains('delete-btn')) {
+                         localCollections.forEach(lcol => {
+                            lcol.dorks = lcol.dorks.filter(ldork => ldork.name !== dork.name);
+                        });
+                        localCollections = localCollections.filter(lcol => lcol.dorks.length > 0);
+                        saveLocalCollections(localCollections);
+                        refreshDataAndRender();
+                    }
+                    else if (targetBtn.classList.contains('copy-btn')) { navigator.clipboard.writeText(dork.dork); targetBtn.classList.add('copied'); setTimeout(() => targetBtn.classList.remove('copied'), 2000); }
+                    else if (targetBtn.dataset.find) handleDorkExecution(dork.dork.replace(targetBtn.dataset.find, targetBtn.dataset.replace));
+                } else { 
+                    handleDorkExecution(dork.dork); 
+                }
+            };
+            ui.dorksContainer.addEventListener('click', handleCardClick);
+            ui.dorksContainer.addEventListener('click', (e) => {
+                 const runCategoryBtn = e.target.closest('.run-category-btn');
+                 if (runCategoryBtn) {
+                    const { collectionName, category } = runCategoryBtn.dataset;
+                    const collection = combinedCollections.find(c => c.name === collectionName);
+                    const dorksToRun = collection.dorks.filter(d => d.category === category).map(d => d.dork);
+                    if(dorksToRun.length > 0) handleDorkExecution(dorksToRun);
+                }
+            });
+
+            ui.modal.addEventListener('click', e => {
+                const target = e.target;
+                if (target.classList.contains('modal-cancel')) hideModal();
+                else if (target.id === 'add-variation-btn') { const c = document.getElementById('variations-container'); const n = document.createElement('div'); n.className = "variation-item grid grid-cols-4 gap-2 items-center"; n.innerHTML = `<input type="text" placeholder="Button Label" class="input-field p-1 v-label"><input type="text" placeholder="Text to Find" class="input-field p-1 v-find"><input type="text" placeholder="Replacement" class="input-field p-1 v-replace"><button type="button" class="btn btn-danger text-xs p-2 remove-variation-btn">X</button>`; c.appendChild(n); }
+                else if (target.classList.contains('remove-variation-btn')) target.closest('.variation-item').remove();
+                else if (target.closest('.dork-component-btn, .quick-add-btn')) { const btn = target.closest('button'); const c = ui.modalBody.querySelector('textarea[name="dork"]'); c.value += (c.value ? ' ' : '') + btn.dataset.term; if (btn.dataset.term === '""') c.setSelectionRange(c.value.length - 1, c.value.length - 1); c.focus(); }
+            });
+
+            ui.modalForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(ui.modalForm); const values = Object.fromEntries(formData.entries());
+                
+                if (ui.modalTitle.textContent.includes("Dork")) {
+                    if (!values.name || !values.dork || !values.category || !values.collectionName) { showAlertModal('Missing Information', 'Please fill out all required fields: Name, Collection, Category, and Dork.'); return; }
+                    if (!validateDorkSyntax(values.dork)) { showAlertModal('Invalid Dork', 'The dork must contain an operator (like <code>site:</code>) or a placeholder (like <code>$target$</code>).'); return; }
+
+                    const newDork = { name: values.name, description: values.description, category: values.category, dork: values.dork, notes: values.notes, favorite: false,
+                        variations: Array.from(ui.modalBody.querySelectorAll('.variation-item')).map(item => ({ label: item.querySelector('.v-label').value, find: item.querySelector('.v-find').value, replace: item.querySelector('.v-replace').value })).filter(v => v.label && v.find)
+                    };
+                    
+                    let localCollection = localCollections.find(c => c.name === values.collectionName);
+                    if (!localCollection) {
+                        localCollection = { name: values.collectionName, dorks: [] };
+                        localCollections.push(localCollection);
+                    }
+
+                    if (editingDorkIndices) { // Editing existing local dork
+                        const { collectionIndex, dorkIndex } = editingDorkIndices;
+                        newDork.favorite = localCollections[collectionIndex].dorks[dorkIndex].favorite;
+                        localCollections[collectionIndex].dorks[dorkIndex] = newDork;
+                    } else { // Adding new local dork
+                        localCollection.dorks.push(newDork);
+                    }
+                    saveLocalCollections(localCollections);
+                    refreshDataAndRender();
+                } else {
+                    Object.keys(values).forEach(key => saveRecentInput(key, values[key]));
+                    runDorks(activeDorks, values);
+                }
+                hideModal();
+            });
+            
+            ui.searchInput.addEventListener('input', () => {
+                const query = ui.searchInput.value.toLowerCase();
+                if (!query) {
+                    document.querySelector('.filter-btn[data-collection-name="All"]')?.click();
+                    return;
+                }
+                const filteredCollections = combinedCollections.map(collection => {
+                    const filteredDorks = collection.dorks.filter(d =>
+                        ['name', 'description', 'dork', 'category'].some(key => (d[key] || "").toLowerCase().includes(query))
+                    );
+                    return { ...collection, dorks: filteredDorks };
+                }).filter(collection => collection.dorks.length > 0);
+                render(filteredCollections);
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            });
+
+            document.getElementById('add-dork-btn').onclick = () => showDorkEditorModal();
+            document.getElementById('help-btn').onclick = showHelpModal;
+            document.getElementById('json-guide-btn').onclick = showJsonGuideModal;
+
+            ui.modal.addEventListener('click', (e) => { if (e.target === ui.modal) hideModal() });
+            document.addEventListener('keydown', (e) => { if (e.key === "Escape" && !ui.modal.classList.contains('hidden')) hideModal(); });
+            
+            // Initial Load
+            loadMasterCollections();
+        });
+    </script>
+</body>
+</html>

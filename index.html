@@ -93,7 +93,7 @@
         <main id="dorks-container" class="space-y-12"></main>
 
         <footer class="text-center mt-12 py-6 border-t border-gray-800">
-            <p class="text-gray-500 text-sm">Made by <span class="font-semibold text-gray-400">Crypt Specter</span>. Uses a remote master dork list.</p>
+            <p class="text-gray-500 text-sm">Made by <span class="font-semibold text-gray-400">Crypt Specter</span>. Your dorks are saved in your browser.</p>
             <p class="text-gray-600 text-xs mt-2">This tool is intended for ethical and educational purposes only. The user is solely responsible for their actions.</p>
         </footer>
     </div>
@@ -120,9 +120,7 @@
         const validDorkOperators = ['site:','filetype:','ext:','intitle:','allintitle:','inurl:','allinurl:','intext:','allintext:','define:','cache:','link:','related:','info:','|','-','"','(',')','*'];
 
         document.addEventListener('DOMContentLoaded', () => {
-            let masterCollections = [];
-            let localCollections = [];
-            let combinedCollections = [];
+            let allCollections = [];
             let activeDorks = [];
             let editingDorkInfo = null;
             let confirmationCallback = null;
@@ -142,55 +140,38 @@
             };
             let notificationTimeout;
 
-            const getLocalCollections = () => JSON.parse(localStorage.getItem('dorker_local_collections') || '[]');
-            const saveLocalCollections = (collections) => localStorage.setItem('dorker_local_collections', JSON.stringify(collections));
+            const getLocalCollections = () => JSON.parse(localStorage.getItem('dorker_collections') || '[]');
+            const saveLocalCollections = (collections) => localStorage.setItem('dorker_collections', JSON.stringify(collections));
 
-            const mergeCollections = () => {
-                const merged = JSON.parse(JSON.stringify(masterCollections));
-                localCollections = getLocalCollections();
-
-                merged.forEach(col => col.dorks.forEach(dork => dork.isMaster = true));
-                localCollections.forEach(col => col.dorks.forEach(dork => dork.isMaster = false));
-
-                localCollections.forEach(localCol => {
-                    const masterCol = merged.find(mc => mc.name === localCol.name);
-                    if (masterCol) {
-                        masterCol.dorks.push(...localCol.dorks);
-                    } else {
-                        merged.push(localCol);
-                    }
-                });
-                return merged;
-            };
-            
             const refreshDataAndRender = () => {
-                combinedCollections = mergeCollections();
+                allCollections = getLocalCollections();
                 const activeFilter = ui.collectionsFilterContainer.querySelector('.active')?.dataset.collectionName || 'All';
-                let collectionsToRender = activeFilter === 'All' ? combinedCollections : combinedCollections.filter(c => c.name === activeFilter);
+                let collectionsToRender = activeFilter === 'All' ? allCollections : allCollections.filter(c => c.name === activeFilter);
                 render(collectionsToRender);
                 renderCollectionFilters();
             };
 
-            const loadMasterCollections = async () => {
-                ui.dorksContainer.innerHTML = `<div class="text-center text-gray-400 p-8"><p class="text-xl">Loading master dorks from GitHub...</p></div>`;
-                try {
-                    const response = await fetch(GITHUB_DORKS_URL);
-                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                    masterCollections = await response.json();
-                } catch (error) {
-                    console.error("Failed to load master dorks:", error);
-                    showAlertModal("Load Error", "Could not fetch the master dork list from GitHub. Please check the URL and your network connection. You can still add and use local dorks.");
-                    masterCollections = [];
-                } finally {
-                    refreshDataAndRender();
+            const initializeDorks = async () => {
+                const localData = localStorage.getItem('dorker_collections');
+                if (!localData || localData === '[]') {
+                    ui.dorksContainer.innerHTML = `<div class="text-center text-gray-400 p-8"><p class="text-xl">Loading default dorks for the first time...</p></div>`;
+                    try {
+                        const response = await fetch(GITHUB_DORKS_URL);
+                        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                        const initialDorks = await response.json();
+                        saveLocalCollections(initialDorks);
+                    } catch (error) {
+                        console.error("Failed to load master dorks:", error);
+                        showAlertModal("Load Error", "Could not fetch the default dork list from GitHub. Please check the URL and your network connection. You can still add your own dorks manually.");
+                    }
                 }
+                refreshDataAndRender();
             };
-
 
             const getRecentInput = (key) => localStorage.getItem(`dorker_input_${key}`);
             const saveRecentInput = (key, value) => localStorage.setItem(`dorker_input_${key}`, value);
-            const getUniqueCollectionNames = () => [...new Set(combinedCollections.map(c => c.name))].sort();
-            const getAllDorksFlat = () => combinedCollections.flatMap(c => c.dorks);
+            const getUniqueCollectionNames = () => [...new Set(allCollections.map(c => c.name))].sort();
+            const getAllDorksFlat = () => allCollections.flatMap(c => c.dorks);
             const getUniqueCategories = () => [...new Set(getAllDorksFlat().map(d => d.category).filter(Boolean))].sort();
             const showNotification = () => { clearTimeout(notificationTimeout); ui.notification.classList.remove('hidden'); notificationTimeout = setTimeout(() => ui.notification.classList.add('hidden'), 5000); };
             const findUniquePlaceholders = (dorkStrings) => [...new Set([].concat(dorkStrings).flatMap(dork => dork.match(placeholderRegex) || []))];
@@ -225,65 +206,59 @@
             };
             const showDorkEditorModal = (dork = null, collection = null) => {
                 editingDorkInfo = dork ? { originalName: dork.name, originalCollectionName: collection.name, dorkRef: dork } : null;
-                const collectionNames = getUniqueCollectionNames().map(c => `<option value="${c}"></option>`).join(''); const categories = getUniqueCategories().map(c => `<option value="${c}"></option>`).join(''); let builderHTML = Object.entries(dorkComponents).map(([cat, comps]) => `<details class="border border-gray-700 rounded-lg mb-2"><summary class="p-3 font-semibold flex justify-between items-center"><span>${cat}</span><svg class="arrow h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></summary><div class="p-3 border-t border-gray-700 flex flex-wrap gap-2">${comps.map(c => `<button type="button" class="dork-component-btn btn btn-secondary text-xs p-1" data-term="${c.term}" title="${c.d}">${c.term}</button>`).join('')}</div></details>`).join(''); const variationsHTML = (dork?.variations || []).map(v => `<div class="variation-item grid grid-cols-4 gap-2 items-center"><input type="text" placeholder="Button Label" value="${v.label||''}" class="input-field p-1 v-label"><input type="text" placeholder="Text to Find" value="${v.find||''}" class="input-field p-1 v-find"><input type="text" placeholder="Replacement" value="${v.replace||''}" class="input-field p-1 v-replace"><button type="button" class="btn btn-danger text-xs p-2 remove-variation-btn">X</button></div>`).join(''); const bodyHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="space-y-4"><input type="text" name="name" class="input-field w-full p-2 rounded" placeholder="Dork Name (Required)" value="${dork?.name || ''}" required><div><label class="block text-sm font-medium text-gray-400 mb-1">Collection</label><input type="text" name="collectionName" list="collection-list" class="input-field w-full p-2 rounded" placeholder="Choose or create a collection (Required)" value="${collection?.name || ''}" required><datalist id="collection-list">${collectionNames}</datalist></div><div><label class="block text-sm font-medium text-gray-400 mb-1">Category</label><input type="text" name="category" list="category-list" class="input-field w-full p-2 rounded" placeholder="Choose or create a category (Required)" value="${dork?.category || ''}" required><datalist id="category-list">${categories}</datalist></div><textarea name="description" class="input-field w-full p-2 rounded" placeholder="Description" rows="3">${dork?.description || ''}</textarea><textarea name="notes" class="input-field w-full p-2 rounded" placeholder="Optional notes..." rows="3">${dork?.notes || ''}</textarea></div><div class="space-y-4"><div><label class="block text-sm font-medium text-gray-400 mb-2">Dork Composer</label><textarea name="dork" class="input-field w-full p-2 rounded font-mono" rows="5" placeholder="Click components or type here... (Required)" required>${dork?.dork || ''}</textarea><div class="flex flex-wrap gap-2 mt-2">${['site:', 'inurl:', 'filetype:', '""', '|', '$target.com$'].map(t => `<button type="button" class="quick-add-btn btn btn-secondary text-xs p-1" data-term="${t}">${t}</button>`).join('')}</div></div><div><label class="block text-sm font-medium text-gray-400 mb-2">Advanced Operators</label>${builderHTML}</div><div><label class="block text-sm font-medium text-gray-400 mb-2">Variations (Optional)</label><div id="variations-container" class="space-y-2">${variationsHTML}</div><button type="button" id="add-variation-btn" class="btn btn-secondary text-sm mt-2">Add Variation</button></div></div></div>`; showModal(dork ? "Edit Local Dork" : "Add New Dork", bodyHTML, `<button type="button" class="modal-cancel btn btn-secondary">Cancel</button><button type="submit" class="btn btn-primary">${dork ? "Save Changes" : "Create Dork"}</button>`);
+                const collectionNames = getUniqueCollectionNames().map(c => `<option value="${c}"></option>`).join(''); const categories = getUniqueCategories().map(c => `<option value="${c}"></option>`).join(''); let builderHTML = Object.entries(dorkComponents).map(([cat, comps]) => `<details class="border border-gray-700 rounded-lg mb-2"><summary class="p-3 font-semibold flex justify-between items-center"><span>${cat}</span><svg class="arrow h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></summary><div class="p-3 border-t border-gray-700 flex flex-wrap gap-2">${comps.map(c => `<button type="button" class="dork-component-btn btn btn-secondary text-xs p-1" data-term="${c.term}" title="${c.d}">${c.term}</button>`).join('')}</div></details>`).join(''); const variationsHTML = (dork?.variations || []).map(v => `<div class="variation-item grid grid-cols-4 gap-2 items-center"><input type="text" placeholder="Button Label" value="${v.label||''}" class="input-field p-1 v-label"><input type="text" placeholder="Text to Find" value="${v.find||''}" class="input-field p-1 v-find"><input type="text" placeholder="Replacement" value="${v.replace||''}" class="input-field p-1 v-replace"><button type="button" class="btn btn-danger text-xs p-2 remove-variation-btn">X</button></div>`).join(''); const bodyHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="space-y-4"><input type="text" name="name" class="input-field w-full p-2 rounded" placeholder="Dork Name (Required)" value="${dork?.name || ''}" required><div><label class="block text-sm font-medium text-gray-400 mb-1">Collection</label><input type="text" name="collectionName" list="collection-list" class="input-field w-full p-2 rounded" placeholder="Choose or create a collection (Required)" value="${collection?.name || ''}" required><datalist id="collection-list">${collectionNames}</datalist></div><div><label class="block text-sm font-medium text-gray-400 mb-1">Category</label><input type="text" name="category" list="category-list" class="input-field w-full p-2 rounded" placeholder="Choose or create a category (Required)" value="${dork?.category || ''}" required><datalist id="category-list">${categories}</datalist></div><textarea name="description" class="input-field w-full p-2 rounded" placeholder="Description" rows="3">${dork?.description || ''}</textarea><textarea name="notes" class="input-field w-full p-2 rounded" placeholder="Optional notes..." rows="3">${dork?.notes || ''}</textarea></div><div class="space-y-4"><div><label class="block text-sm font-medium text-gray-400 mb-2">Dork Composer</label><textarea name="dork" class="input-field w-full p-2 rounded font-mono" rows="5" placeholder="Click components or type here... (Required)" required>${dork?.dork || ''}</textarea><div class="flex flex-wrap gap-2 mt-2">${['site:', 'inurl:', 'filetype:', '""', '|', '$target.com$'].map(t => `<button type="button" class="quick-add-btn btn btn-secondary text-xs p-1" data-term="${t}">${t}</button>`).join('')}</div></div><div><label class="block text-sm font-medium text-gray-400 mb-2">Advanced Operators</label>${builderHTML}</div><div><label class="block text-sm font-medium text-gray-400 mb-2">Variations (Optional)</label><div id="variations-container" class="space-y-2">${variationsHTML}</div><button type="button" id="add-variation-btn" class="btn btn-secondary text-sm mt-2">Add Variation</button></div></div></div>`; showModal(dork ? "Edit Dork" : "Add New Dork", bodyHTML, `<button type="button" class="modal-cancel btn btn-secondary">Cancel</button><button type="submit" class="btn btn-primary">${dork ? "Save Changes" : "Create Dork"}</button>`);
             };
-            const showHelpModal = () => { const bodyHTML = `<div class="space-y-4 text-gray-300"><div class="p-4 rounded-lg bg-red-900/50 border border-red-700"><h4 class="font-bold text-red-300">Disclaimer</h4><p class="text-sm text-red-300/90">This tool is for educational and ethical security research only. Unauthorized searching and accessing of data can be illegal. The user bears all responsibility for their actions.</p></div><p>This tool helps you organize and run Search Engine Dorks for security research and reconnaissance.</p><h4 class="text-lg font-semibold text-white pt-2">How to Use</h4><ul class="list-disc list-inside space-y-2 pl-2"><li><strong>Master vs. Local Dorks:</strong> The tool loads a read-only "master" list from GitHub. You can add your own "local" dorks, which are editable and saved in your browser.</li><li><strong>Run a Dork:</strong> Simply click the 'Run Dork' button on a dork card to run it.</li><li><strong>Placeholders:</strong> Dorks with placeholders like <code>$target.com$</code> will ask for your input before running.</li><li><strong>Settings:</strong> Use the Settings (gear icon) to Import, Export, or Clear your <strong>local</strong> dorks. <strong>Regularly export your dorks as a backup!</strong></li></ul></div>`; showModal("How to Use the Dorker Tool", bodyHTML, `<button type="button" class="modal-cancel btn btn-primary">Got it</button>`); };
-            const showSettingsModal = () => { const bodyHTML = `<div class="space-y-4 text-gray-300"><p>Manage your <strong>local</strong> dork collections. It's recommended to back up your dorks periodically.</p><div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4"><button type="button" id="import-dorks-btn" class="btn btn-secondary w-full">Import from File</button><button type="button" id="export-dorks-btn" class="btn btn-secondary w-full">Export to File</button><button type="button" id="clear-dorks-btn" class="btn btn-danger w-full">Clear All Local Dorks</button></div><input type="file" id="import-file-input" class="hidden" accept=".json"></div>`; showModal("Settings", bodyHTML, `<button type="button" class="modal-cancel btn btn-primary">Done</button>`); };
+            const showHelpModal = () => { const bodyHTML = `<div class="space-y-4 text-gray-300"><div class="p-4 rounded-lg bg-red-900/50 border border-red-700"><h4 class="font-bold text-red-300">Disclaimer</h4><p class="text-sm text-red-300/90">This tool is for educational and ethical security research only. Unauthorized searching and accessing of data can be illegal. The user bears all responsibility for their actions.</p></div><p>This tool helps you organize and run Search Engine Dorks for security research and reconnaissance.</p><h4 class="text-lg font-semibold text-white pt-2">How to Use</h4><ul class="list-disc list-inside space-y-2 pl-2"><li><strong>Your Personal Dorks:</strong> A default set of dorks is loaded on first use. You can edit, delete, and add to this collection as you see fit. Your collection is saved in your browser.</li><li><strong>Run a Dork:</strong> Simply click the 'Run Dork' button on a dork card to run it.</li><li><strong>Placeholders:</strong> Dorks with placeholders like <code>$target.com$</code> will ask for your input before running.</li><li><strong>Settings:</strong> Use the Settings (gear icon) to Import, Export, or Clear your dorks. You can also reset your collection to the original default set.</li></ul></div>`; showModal("How to Use the Dorker Tool", bodyHTML, `<button type="button" class="modal-cancel btn btn-primary">Got it</button>`); };
+            const showSettingsModal = () => { const bodyHTML = `<div class="space-y-4 text-gray-300"><p>Manage your dork collection. It's recommended to back up your dorks periodically.</p><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4"><button type="button" id="import-dorks-btn" class="btn btn-secondary w-full">Import</button><button type="button" id="export-dorks-btn" class="btn btn-secondary w-full">Export</button><button type="button" id="reset-dorks-btn" class="btn btn-secondary w-full">Reset to Default</button><button type="button" id="clear-dorks-btn" class="btn btn-danger w-full">Clear All</button></div><input type="file" id="import-file-input" class="hidden" accept=".json"></div>`; showModal("Settings", bodyHTML, `<button type="button" class="modal-cancel btn btn-primary">Done</button>`); };
             const showAlertModal = (title, message) => showModal(`<span class="text-yellow-400">${title}</span>`, `<p>${message}</p>`, `<button type="button" class="modal-cancel btn btn-primary">OK</button>`);
             const showConfirmationModal = (title, message, onConfirm) => { showModal(`<span class="text-red-500">${title}</span>`, `<p>${message}</p>`, `<button type="button" class="modal-cancel btn btn-secondary">Cancel</button><button type="button" id="confirm-action-btn" class="btn btn-danger">Confirm</button>`); confirmationCallback = onConfirm; };
             const showUrlListModal = (urls) => { const linksHTML = urls.map((url, index) => `<li><a href="${url}" target="_blank" class="text-blue-400 hover:underline break-all">Dork ${index + 1}: ${url.substring(0, 80)}...</a></li>`).join(''); const bodyHTML = `<p class="text-gray-400 mb-4">Your browser may block multiple pop-ups. Use the links below to open each dork individually, or copy all URLs.</p><div class="mb-4"><label class="block text-sm font-medium text-gray-400 mb-1">Generated URLs</label><textarea readonly class="input-field w-full h-32 font-mono text-xs">${urls.join('\n')}</textarea></div><h4 class="text-lg font-semibold mb-2">Click to Open</h4><ul class="list-disc list-inside space-y-2 max-h-48 overflow-y-auto">${linksHTML}</ul>`; const footerHTML = `<button type="button" id="copy-urls-btn" class="btn btn-secondary">Copy All URLs</button><button type="button" class="modal-cancel btn btn-primary">Done</button>`; showModal("Generated Dork URLs", bodyHTML, footerHTML); };
-            const renderCollectionFilters = (activeCollectionName = 'All') => { ui.collectionsFilterContainer.innerHTML = ''; const names = getUniqueCollectionNames(); const createButton = (name, isActive) => { const btn = document.createElement('button'); btn.className = `btn btn-secondary text-sm filter-btn ${isActive ? 'active' : ''}`; btn.textContent = name; btn.dataset.collectionName = name; btn.addEventListener('click', () => { document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); const collectionsToRender = name === 'All' ? combinedCollections : combinedCollections.filter(c => c.name === name); render(collectionsToRender); }); return btn; }; ui.collectionsFilterContainer.appendChild(createButton('All', activeCollectionName === 'All')); names.forEach(name => ui.collectionsFilterContainer.appendChild(createButton(name, activeCollectionName === name))); };
+            const renderCollectionFilters = (activeCollectionName = 'All') => { ui.collectionsFilterContainer.innerHTML = ''; const names = getUniqueCollectionNames(); const createButton = (name, isActive) => { const btn = document.createElement('button'); btn.className = `btn btn-secondary text-sm filter-btn ${isActive ? 'active' : ''}`; btn.textContent = name; btn.dataset.collectionName = name; btn.addEventListener('click', () => { document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); const collectionsToRender = name === 'All' ? allCollections : allCollections.filter(c => c.name === name); render(collectionsToRender); }); return btn; }; ui.collectionsFilterContainer.appendChild(createButton('All', activeCollectionName === 'All')); names.forEach(name => ui.collectionsFilterContainer.appendChild(createButton(name, activeCollectionName === name))); };
             const render = (collectionsToRender) => {
                 ui.dorksContainer.innerHTML = ''; const favorites = getAllDorksFlat().filter(d => d.favorite); if (favorites.length > 0) ui.dorksContainer.appendChild(renderCategorySection(null, "Favorites", favorites));
                 collectionsToRender.forEach((collection) => { const collectionContainer = document.createElement('section'); collectionContainer.className = 'collection-section'; const nonFavoriteDorks = collection.dorks.filter(d => !d.favorite); const dorksByCategory = nonFavoriteDorks.reduce((acc, dork) => { const category = dork.category || "Uncategorized"; (acc[category] = acc[category] || []).push(dork); return acc; }, {}); Object.keys(dorksByCategory).sort().forEach(category => { collectionContainer.appendChild(renderCategorySection(collection, category, dorksByCategory[category])); }); ui.dorksContainer.appendChild(collectionContainer); });
-                if (ui.dorksContainer.innerHTML === '') { const query = ui.searchInput.value; const message = query ? `<h3>No dorks found for "${query}".</h3><p class="mt-2">Try a different search term or clear the search to see all dorks.</p>` : `<h3>No dorks loaded.</h3><p class="mt-2">Feel free to add a local dork to get started.</p>`; ui.dorksContainer.innerHTML = `<div class="text-center text-gray-400 bg-gray-900/50 rounded-lg p-8">${message}</div>`; }
+                if (ui.dorksContainer.innerHTML === '') { const query = ui.searchInput.value; const message = query ? `<h3>No dorks found for "${query}".</h3><p class="mt-2">Try a different search term or clear the search to see all dorks.</p>` : `<h3>No dorks loaded.</h3><p class="mt-2">Feel free to add a dork to get started.</p>`; ui.dorksContainer.innerHTML = `<div class="text-center text-gray-400 bg-gray-900/50 rounded-lg p-8">${message}</div>`; }
             };
             const renderCategorySection = (collection, categoryName, dorkList) => {
                 const categorySection = document.createElement('div'); categorySection.className = 'mb-10'; categorySection.innerHTML = `<div class="flex justify-between items-center mb-6"><h3 class="text-2xl font-semibold border-l-4 border-blue-500 pl-4">${categoryName} ${collection && categoryName !== 'Favorites' ? `<span class="text-base font-normal text-gray-400">in ${collection.name}</span>` : ''}</h3>${categoryName !== 'Favorites' ? `<button data-collection-name="${collection.name}" data-category="${categoryName}" class="run-category-btn btn btn-secondary text-sm">Run Category</button>`: ''}</div>`; const grid = document.createElement('div'); grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
-                dorkList.forEach(dork => { const card = document.createElement('div'); card.className = 'dork-card rounded-lg p-5 flex flex-col justify-between'; card.dataset.dorkName = dork.name; const collectionForCard = collection || combinedCollections.find(c => c.dorks.some(d => d.name === dork.name && d.dork === dork.dork)); card.dataset.collectionName = collectionForCard ? collectionForCard.name : 'Unknown'; const editDeleteButtons = dork.isMaster ? '' : `<button class="edit-btn text-gray-400 hover:text-white p-1" title="Edit"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"/></svg></button><button class="delete-btn text-gray-400 hover:text-red-500 p-1" title="Delete"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>`; card.innerHTML = `<div class="flex-grow"><div class="flex justify-between items-start mb-2"><h4 class="text-xl font-semibold pr-2">${dork.name}</h4><div class="flex space-x-0 5 flex-shrink-0"><button class="favorite-btn ${dork.favorite ? 'favorited' : ''} text-gray-400 hover:text-yellow-400 p-1" title="Favorite"><svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg></button>${editDeleteButtons}</div></div><p class="text-gray-400 mt-1 text-sm">${dork.description}</p>${dork.notes ? `<p class="text-xs text-blue-300 bg-blue-900/50 rounded px-2 py-1 mt-3"><strong>Note:</strong> ${dork.notes}</p>` : ''}</div><div class="mt-4"><div class="relative"><code class="block bg-gray-900 text-gray-300 p-3 rounded-md text-xs overflow-x-auto whitespace-pre-wrap pr-10">${dork.dork}</code><button class="copy-btn absolute top-1/2 right-2 transform -translate-y-1/2 text-gray-400 hover:text-white p-1 bg-gray-800 rounded" title="Copy"><svg class="copy-icon h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7v8a2 2 0 002 2h4M8 7a2 2 0 012-2h4a2 2 0 012 2v8a2 2 0 01-2 2h-4a2 2 0 01-2-2V7z" /></svg><svg class="check-icon h-5 w-5 text-white" style="display:none;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg></button></div>${dork.variations?.length > 0 ? `<div class="mt-2 flex flex-wrap gap-2">${dork.variations.map(v => `<button class="variation-btn btn btn-secondary text-xs" data-find="${v.find}" data-replace="${v.replace}">${v.label}</button>`).join('')}</div>` : ''}</div><div class="mt-4"><button class="run-dork-btn btn btn-primary w-full">Run Dork</button></div>`; grid.appendChild(card); });
+                dorkList.forEach(dork => { const card = document.createElement('div'); card.className = 'dork-card rounded-lg p-5 flex flex-col justify-between'; card.dataset.dorkName = dork.name; const collectionForCard = collection || allCollections.find(c => c.dorks.includes(dork)); card.dataset.collectionName = collectionForCard ? collectionForCard.name : 'Unknown'; const editDeleteButtons = `<button class="edit-btn text-gray-400 hover:text-white p-1" title="Edit"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"/></svg></button><button class="delete-btn text-gray-400 hover:text-red-500 p-1" title="Delete"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>`; card.innerHTML = `<div class="flex-grow"><div class="flex justify-between items-start mb-2"><h4 class="text-xl font-semibold pr-2">${dork.name}</h4><div class="flex space-x-0 5 flex-shrink-0"><button class="favorite-btn ${dork.favorite ? 'favorited' : ''} text-gray-400 hover:text-yellow-400 p-1" title="Favorite"><svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg></button>${editDeleteButtons}</div></div><p class="text-gray-400 mt-1 text-sm">${dork.description}</p>${dork.notes ? `<p class="text-xs text-blue-300 bg-blue-900/50 rounded px-2 py-1 mt-3"><strong>Note:</strong> ${dork.notes}</p>` : ''}</div><div class="mt-4"><div class="relative"><code class="block bg-gray-900 text-gray-300 p-3 rounded-md text-xs overflow-x-auto whitespace-pre-wrap pr-10">${dork.dork}</code><button class="copy-btn absolute top-1/2 right-2 transform -translate-y-1/2 text-gray-400 hover:text-white p-1 bg-gray-800 rounded" title="Copy"><svg class="copy-icon h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7v8a2 2 0 002 2h4M8 7a2 2 0 012-2h4a2 2 0 012 2v8a2 2 0 01-2 2h-4a2 2 0 01-2-2V7z" /></svg><svg class="check-icon h-5 w-5 text-white" style="display:none;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg></button></div>${dork.variations?.length > 0 ? `<div class="mt-2 flex flex-wrap gap-2">${dork.variations.map(v => `<button class="variation-btn btn btn-secondary text-xs" data-find="${v.find}" data-replace="${v.replace}">${v.label}</button>`).join('')}</div>` : ''}</div><div class="mt-4"><button class="run-dork-btn btn btn-primary w-full">Run Dork</button></div>`; grid.appendChild(card); });
                 categorySection.appendChild(grid); return categorySection;
             };
             const handleCardClick = (e) => {
                 const card = e.target.closest('.dork-card'); if (!card) return;
                 const dorkName = card.dataset.dorkName;
                 const collectionName = card.dataset.collectionName;
-                const collection = combinedCollections.find(c => c.name === collectionName); if (!collection) return;
+                const collection = allCollections.find(c => c.name === collectionName); if (!collection) return;
                 const dork = collection.dorks.find(d => d.name === dorkName && d.dork === card.querySelector('code').textContent); if (!dork) return;
                 const targetBtn = e.target.closest('button'); if (!targetBtn) return;
                 if (targetBtn.classList.contains('run-dork-btn')) { handleDorkExecution(dork.dork); }
                 else if (targetBtn.classList.contains('variation-btn')) { handleDorkExecution(dork.dork.replace(targetBtn.dataset.find, targetBtn.dataset.replace)); }
-                else if (targetBtn.classList.contains('favorite-btn')) { dork.favorite = !dork.favorite; if (dork.isMaster) { /* Maybe handle master favorites differently if needed */ } else { localCollections = getLocalCollections(); const localDork = findLocalDork(dork); if(localDork) { localDork.favorite = dork.favorite; saveLocalCollections(localCollections); } } refreshDataAndRender(); }
+                else if (targetBtn.classList.contains('favorite-btn')) { dork.favorite = !dork.favorite; saveLocalCollections(allCollections); refreshDataAndRender(); }
                 else if (targetBtn.classList.contains('edit-btn')) { showDorkEditorModal(dork, collection); }
                 else if (targetBtn.classList.contains('copy-btn')) { navigator.clipboard.writeText(dork.dork); targetBtn.classList.add('copied'); setTimeout(() => targetBtn.classList.remove('copied'), 2000); }
                 else if (targetBtn.classList.contains('delete-btn')) {
                     showConfirmationModal("Delete Dork?", `Are you sure you want to permanently delete the dork "${dork.name}"?`, () => {
-                        localCollections = getLocalCollections();
-                        let collectionFound = false;
-                        localCollections.forEach(lcol => {
-                            const dorkIndex = lcol.dorks.findIndex(ld => ld.name === dork.name && ld.dork === dork.dork);
-                            if (dorkIndex > -1) { lcol.dorks.splice(dorkIndex, 1); collectionFound = true; }
-                        });
-                        if (collectionFound) {
-                            localCollections = localCollections.filter(c => c.dorks.length > 0);
-                            saveLocalCollections(localCollections);
-                        }
+                        const dorkIndex = collection.dorks.findIndex(d => d === dork);
+                        if (dorkIndex > -1) { collection.dorks.splice(dorkIndex, 1); }
+                        allCollections = allCollections.filter(c => c.dorks.length > 0);
+                        saveLocalCollections(allCollections);
                         refreshDataAndRender();
                         hideModal();
                     });
                 }
             };
-            const findLocalDork = (dork) => { for (const collection of localCollections) { for (const localDork of collection.dorks) { if (localDork.name === dork.name && localDork.dork === dork.dork) return localDork; } } return null; };
             ui.dorksContainer.addEventListener('click', handleCardClick);
-            ui.dorksContainer.addEventListener('click', (e) => { const runCategoryBtn = e.target.closest('.run-category-btn'); if (runCategoryBtn) { const { collectionName, category } = runCategoryBtn.dataset; const collection = combinedCollections.find(c => c.name === collectionName); const dorksToRun = collection.dorks.filter(d => d.category === category).map(d => d.dork); if(dorksToRun.length > 0) handleDorkExecution(dorksToRun); } });
-            const exportLocalDorks = () => { const localData = getLocalCollections(); if (localData.length === 0) { showAlertModal("Export Failed", "There are no local dorks to export."); return; } const dataStr = JSON.stringify(localData, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `dorker_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); };
-            const importLocalDorks = (file) => { const reader = new FileReader(); reader.onload = (event) => { try { const importedCollections = JSON.parse(event.target.result); if (!Array.isArray(importedCollections)) throw new Error("Invalid format: Not an array."); showConfirmationModal("Confirm Import", "This will overwrite all your current local dorks. Are you sure you want to continue?", () => { saveLocalCollections(importedCollections); refreshDataAndRender(); hideModal(); }); } catch (error) { showAlertModal("Import Error", `Failed to parse JSON file. Please ensure it is a valid dork backup. Error: ${error.message}`); } }; reader.readAsText(file); };
+            ui.dorksContainer.addEventListener('click', (e) => { const runCategoryBtn = e.target.closest('.run-category-btn'); if (runCategoryBtn) { const { collectionName, category } = runCategoryBtn.dataset; const collection = allCollections.find(c => c.name === collectionName); const dorksToRun = collection.dorks.filter(d => d.category === category).map(d => d.dork); if(dorksToRun.length > 0) handleDorkExecution(dorksToRun); } });
+            const exportLocalDorks = () => { const localData = getLocalCollections(); if (localData.length === 0) { showAlertModal("Export Failed", "There are no dorks to export."); return; } const dataStr = JSON.stringify(localData, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `dorker_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); };
+            const importLocalDorks = (file) => { const reader = new FileReader(); reader.onload = (event) => { try { const importedCollections = JSON.parse(event.target.result); if (!Array.isArray(importedCollections)) throw new Error("Invalid format: Not an array."); showConfirmationModal("Confirm Import", "This will overwrite all your current dorks. Are you sure you want to continue?", () => { saveLocalCollections(importedCollections); refreshDataAndRender(); hideModal(); }); } catch (error) { showAlertModal("Import Error", `Failed to parse JSON file. Please ensure it is a valid dork backup. Error: ${error.message}`); } }; reader.readAsText(file); };
             ui.modal.addEventListener('click', e => {
                 const target = e.target;
                 if (target.classList.contains('modal-cancel')) { hideModal(); }
                 else if (target.id === 'confirm-action-btn' && confirmationCallback) { confirmationCallback(); }
                 else if (target.id === 'export-dorks-btn') { exportLocalDorks(); }
                 else if (target.id === 'import-dorks-btn') { document.getElementById('import-file-input').click(); }
-                else if (target.id === 'clear-dorks-btn') { showConfirmationModal("Clear All?", "This will delete ALL your local dorks. This action cannot be undone.", () => { saveLocalCollections([]); refreshDataAndRender(); hideModal(); }); }
+                else if (target.id === 'clear-dorks-btn') { showConfirmationModal("Clear All Dorks?", "This will delete ALL your dorks. This action cannot be undone.", () => { saveLocalCollections([]); refreshDataAndRender(); hideModal(); }); }
+                else if (target.id === 'reset-dorks-btn') { showConfirmationModal("Reset to Default?", "This will delete all your custom dorks and reload the original list from GitHub. Are you sure?", () => { localStorage.removeItem('dorker_collections'); initializeDorks(); hideModal(); }); }
                 else if (target.id === 'add-variation-btn') { const c = document.getElementById('variations-container'); const n = document.createElement('div'); n.className = "variation-item grid grid-cols-4 gap-2 items-center"; n.innerHTML = `<input type="text" placeholder="Button Label" class="input-field p-1 v-label"><input type="text" placeholder="Text to Find" class="input-field p-1 v-find"><input type="text" placeholder="Replacement" class="input-field p-1 v-replace"><button type="button" class="btn btn-danger text-xs p-2 remove-variation-btn">X</button>`; c.appendChild(n); }
                 else if (target.classList.contains('remove-variation-btn')) { target.closest('.variation-item').remove(); }
                 else if (target.closest('.dork-component-btn, .quick-add-btn')) { const btn = target.closest('button'); const c = ui.modalBody.querySelector('textarea[name="dork"]'); c.value += (c.value ? ' ' : '') + btn.dataset.term; if (btn.dataset.term === '""') c.setSelectionRange(c.value.length - 1, c.value.length - 1); c.focus(); }
@@ -295,40 +270,28 @@
                 if (ui.modalTitle.textContent.includes("Dork")) {
                     if (!values.name || !values.dork || !values.category || !values.collectionName) { showAlertModal('Missing Information', 'Please fill out all required fields.'); return; }
                     if (!validateDorkSyntax(values.dork)) { showAlertModal('Invalid Dork', 'The dork must contain an operator (like <code>site:</code>) or a placeholder (like <code>$target$</code>).'); return; }
-                    
-                    localCollections = getLocalCollections();
-                    const targetCollection = localCollections.find(c => c.name === values.collectionName);
+                    const targetCollection = allCollections.find(c => c.name === values.collectionName);
                     const isEditing = !!editingDorkInfo;
                     const originalName = isEditing ? editingDorkInfo.originalName : '';
                     if (targetCollection && values.name !== originalName && targetCollection.dorks.some(d => d.name === values.name)) { showAlertModal('Duplicate Name', `A dork named "${values.name}" already exists in the "${values.collectionName}" collection.`); return; }
-                    
                     const newDorkData = { name: values.name, description: values.description, category: values.category, dork: values.dork, notes: values.notes, favorite: isEditing ? editingDorkInfo.dorkRef.favorite : false, variations: Array.from(ui.modalBody.querySelectorAll('.variation-item')).map(item => ({ label: item.querySelector('.v-label').value, find: item.querySelector('.v-find').value, replace: item.querySelector('.v-replace').value })).filter(v => v.label && v.find) };
-                    
                     if (isEditing) {
-                        const oldCollectionName = editingDorkInfo.originalCollectionName;
-                        let oldCollection = localCollections.find(c => c.name === oldCollectionName);
-                        if (oldCollection) {
+                        const oldCollection = allCollections.find(c => c.name === editingDorkInfo.originalCollectionName);
+                        if (oldCollection && oldCollection.name !== values.collectionName) {
                             const dorkIndex = oldCollection.dorks.findIndex(d => d === editingDorkInfo.dorkRef);
-                            if (dorkIndex > -1) {
-                                if (oldCollectionName !== values.collectionName) {
-                                    oldCollection.dorks.splice(dorkIndex, 1);
-                                } else {
-                                    Object.assign(oldCollection.dorks[dorkIndex], newDorkData);
-                                    saveLocalCollections(localCollections);
-                                    refreshDataAndRender();
-                                    hideModal();
-                                    return;
-                                }
-                            }
+                            if(dorkIndex > -1) oldCollection.dorks.splice(dorkIndex, 1);
                         }
                     }
-
-                    let collectionForDork = localCollections.find(c => c.name === values.collectionName);
-                    if (!collectionForDork) { collectionForDork = { name: values.collectionName, dorks: [] }; localCollections.push(collectionForDork); }
-                    collectionForDork.dorks.push(newDorkData);
-                    
-                    localCollections = localCollections.filter(c => c.dorks.length > 0);
-                    saveLocalCollections(localCollections);
+                    let collectionForDork = allCollections.find(c => c.name === values.collectionName);
+                    if (!collectionForDork) { collectionForDork = { name: values.collectionName, dorks: [] }; allCollections.push(collectionForDork); }
+                    if (isEditing) {
+                        const dorkToUpdate = collectionForDork.dorks.find(d => d === editingDorkInfo.dorkRef);
+                        if(dorkToUpdate) { Object.assign(dorkToUpdate, newDorkData); } else { collectionForDork.dorks.push(newDorkData); }
+                    } else {
+                        collectionForDork.dorks.push(newDorkData);
+                    }
+                    allCollections = allCollections.filter(c => c.dorks.length > 0);
+                    saveLocalCollections(allCollections);
                     refreshDataAndRender();
                     hideModal();
                 } else {
@@ -343,7 +306,7 @@
                     }
                 }
             });
-            ui.searchInput.addEventListener('input', () => { const query = ui.searchInput.value.toLowerCase(); if (!query) { document.querySelector('.filter-btn[data-collection-name="All"]')?.click(); return; } const filteredCollections = combinedCollections.map(collection => { const filteredDorks = collection.dorks.filter(d => ['name', 'description', 'dork', 'category'].some(key => (d[key] || "").toLowerCase().includes(query)) ); return { ...collection, dorks: filteredDorks }; }).filter(collection => collection.dorks.length > 0); render(filteredCollections); document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); });
+            ui.searchInput.addEventListener('input', () => { const query = ui.searchInput.value.toLowerCase(); if (!query) { document.querySelector('.filter-btn[data-collection-name="All"]')?.click(); return; } const filteredCollections = allCollections.map(collection => { const filteredDorks = collection.dorks.filter(d => ['name', 'description', 'dork', 'category'].some(key => (d[key] || "").toLowerCase().includes(query)) ); return { ...collection, dorks: filteredDorks }; }).filter(collection => collection.dorks.length > 0); render(filteredCollections); document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); });
             document.getElementById('add-dork-btn').onclick = () => showDorkEditorModal();
             document.getElementById('settings-btn').onclick = showSettingsModal;
             document.getElementById('help-btn').onclick = showHelpModal;
@@ -351,8 +314,9 @@
             document.body.addEventListener('change', e => { if (e.target.id === 'import-file-input' && e.target.files.length > 0) importLocalDorks(e.target.files[0]); });
             ui.modal.addEventListener('click', (e) => { if (e.target === ui.modal) hideModal() });
             document.addEventListener('keydown', (e) => { if (e.key === "Escape" && !ui.modal.classList.contains('hidden')) hideModal(); });
-            loadMasterCollections();
+            initializeDorks();
         });
     </script>
 </body>
 </html>
+

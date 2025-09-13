@@ -1,4 +1,3 @@
-
 # Guide to Creating a Master Dork JSON File
 
 This document provides a comprehensive guide on how to create a `dorks.json` file for use with the Advanced Dorker Tool. This file allows you to define a default, shareable library of dorks that can be loaded by the tool.

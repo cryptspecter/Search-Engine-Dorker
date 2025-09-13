@@ -347,7 +347,7 @@
             document.getElementById('add-dork-btn').onclick = () => showDorkEditorModal();
             document.getElementById('settings-btn').onclick = showSettingsModal;
             document.getElementById('help-btn').onclick = showHelpModal;
-            document.getElementById('json-guide-btn').onclick = () => window.open('https://github.com/cryptspecter/Search-Engine-Dorker/blob/main/dork_file_guide.md', '_blank');
+            document.getElementById('json-guide-btn').onclick = () => window.open('https://github.com/cryptspecter/Search-Engine-Dorker/blob/main/Master-json-Doc.md', '_blank');
             document.body.addEventListener('change', e => { if (e.target.id === 'import-file-input' && e.target.files.length > 0) importLocalDorks(e.target.files[0]); });
             ui.modal.addEventListener('click', (e) => { if (e.target === ui.modal) hideModal() });
             document.addEventListener('keydown', (e) => { if (e.key === "Escape" && !ui.modal.classList.contains('hidden')) hideModal(); });

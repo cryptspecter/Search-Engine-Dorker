@@ -25,7 +25,7 @@ This tool is a single, self-contained web page that runs entirely in your browse
 ## How to Use
 
 1.  **Access the Tool**: Open your browser and go to:
-    [https://cryptspecter.github.io/Search-Engine-Dorker/](https://cryptspecter.github.io/Search-Engine-Dorker/)
+    [https://0bl1vyx.github.io/Search-Engine-Dorker/](https://0bl1vyx.github.io/Search-Engine-Dorker/)
 
 2.  **Start Dorking**: On your first visit, the tool will automatically load the default dork set. You can immediately start running dorks, editing them, or adding your own. Your personalized collection is automatically saved in your browser.
 
